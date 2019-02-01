@@ -99,18 +99,23 @@ def run(row):
     a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
     for x in xrange(n):
-        a0, e0, w0 = rungeKutta(0, a0, e0, w0, m1,m2, 10**4, 100)
+        a0, e0, w0 = rungeKutta(0, a0, e0, w0, m1,m2, 10**4, 1)
         aa[x], ee[x], ww[x] = a0, e0, w0
     df = pd.DataFrame(data={'a': aa, 'e': ee, 'w': ww})
     df.to_pickle("/Users/adam/Projects/tidal/"+row['Name']+".p")
 
 
 
-pool = mp.Pool(processes=4)
-results = [pool.apply(run, args=(row,)) for index, row in csv.iterrows()]
+rows = [row for index, row in csv.iterrows()]
+pool = mp.Pool(processes=5)
+pool.map(run, rows)
 
 
 
+
+
+#for index, row in csv.iterrows():
+#    print row["Name"]
 
 
 
