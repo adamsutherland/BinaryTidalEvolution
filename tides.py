@@ -48,7 +48,7 @@ def dedt(a,e,w,k,Tau,m1,m2,R):
 
 def dwdt(a,e,w,k,Tau,m1,m2,R):
     q=m1/m2
-    return -3*k/Tau*q**2/rg2*(R/a)**6*(G*(m1+m2))**(1./2.)*(a)**(-3./2)/(1 - (e)**2)**(6.) * (f2(e) - (1 - (e)**2)**(3./2)*f2(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
+    return -3*k/Tau*q**2/rg2*(R/a)**6*(G*(m1+m2))**(1./2.)*(a)**(-3./2)/(1 - (e)**2)**(6.) * (f2(e) - (1 - (e)**2)**(3./2)*f5(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
 
 
 
@@ -59,10 +59,11 @@ def rungeKutta(t0, a0, e0, w0, m1, m2, t, h):
     # Iterate for number of iterations 
     #a = a0
     Tau = 0.04533467056883912
-    Ptid = (abs((a0)**(-3./2)-w0))**-1
-    k = 2.0/21.0 * min(1.0,(Ptid/(2*Tau))**2)
+    
     for i in range(1, n + 1): 
         "Apply Runge Kutta Formulas to find next value of y"
+        Ptid = (abs((a0)**(-3./2)-w0))**-1
+        k = 2.0/21.0 * min(1.0,(Ptid/(2*Tau))**2)
         k1a = h * dadt(a0,e0,w0,k,Tau,m1, m2,R) 
         k1e = h * dedt(a0,e0,w0,k,Tau,m1, m2,R) 
         k1w = h * dwdt(a0,e0,w0,k,Tau,m1, m2,R)
@@ -83,33 +84,39 @@ def rungeKutta(t0, a0, e0, w0, m1, m2, t, h):
   
         # Update next value of x 
         t0 = t0 + h 
-    return a0, e0, w0
+    return t0, a0, e0, w0
 
 
 
 
 def run(row):
-    n = 10**2
+    tmax = 10**11
+    tout = 10**5
+    dt = 10**4
+    n = int(tmax/tout)
+    tt = np.zeros(n)
     aa = np.zeros(n)
     ee = np.zeros(n)
     ww = np.zeros(n)
     print row['Name']
     m1,m2 = row["m1"], row["m2"]
     a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
-    a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
+    #a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    t0 =0
     for x in xrange(n):
-        a0, e0, w0 = rungeKutta(0, a0, e0, w0, m1,m2, 10**4, 1)
-        aa[x], ee[x], ww[x] = a0, e0, w0
-    df = pd.DataFrame(data={'a': aa, 'e': ee, 'w': ww})
-    df.to_pickle("/Users/adam/Projects/tidal/"+row['Name']+".p")
+        t0, a0, e0, w0 = rungeKutta(t0, a0, e0, w0, m1,m2,t0+ tout, dt)
+        tt[x], aa[x], ee[x], ww[x] = t0, a0, e0, w0
+    df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww})
+    df.to_pickle("/home/adam/Projects/BinaryTidalEvolution/"+row['Name']+".p")
 
 
+import multiprocessing
 
+numcpu = multiprocessing.cpu_count()
 rows = [row for index, row in csv.iterrows()]
-pool = mp.Pool(processes=5)
+pool = mp.Pool(processes=numcpu)
 pool.map(run, rows)
-
 
 
 
