@@ -34,22 +34,21 @@ csv = csv[(csv.Name != "47d")&(csv.Name != "47c")]
 
 
 
-rg2=0.4
+rg2=0.1
 G = 4.0*np.pi**2
 R = 1./215
 
 def dadt(a,e,w,k,Tau,m1,m2,R):
-    q=m1/m2
-    return 6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
+    q=m2/m1
+    return 50*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
 
 def dedt(a,e,w,k,Tau,m1,m2,R):
-    q=m1/m2
-    return 27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
+    q=m2/m1
+    return 50*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
 
 def dwdt(a,e,w,k,Tau,m1,m2,R):
-    q=m1/m2
-    return -3*k/Tau*q**2/rg2*(R/a)**6*(G*(m1+m2))**(1./2.)*(a)**(-3./2)/(1 - (e)**2)**(6.) * (f2(e) - (1 - (e)**2)**(3./2)*f5(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
-
+    q=m2/m1
+    return -50*3*k/Tau*q**2/rg2*(R/a)**6*(G*(m1+m2))**(1./2.)*(a)**(-3./2)/(1 - (e)**2)**(6.) * (f2(e) - (1 - (e)**2)**(3./2)*f5(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
 
 
 def rungeKutta(t0, a0, e0, w0, m1, m2, t, h): 
@@ -59,7 +58,7 @@ def rungeKutta(t0, a0, e0, w0, m1, m2, t, h):
     # Iterate for number of iterations 
     #a = a0
     Tau = 0.04533467056883912
-    
+    R = 1./215. * m1**(3./7.)
     for i in range(1, n + 1): 
         "Apply Runge Kutta Formulas to find next value of y"
         Ptid = (abs((a0)**(-3./2)-w0))**-1
@@ -90,7 +89,7 @@ def rungeKutta(t0, a0, e0, w0, m1, m2, t, h):
 
 
 def run(row):
-    tmax = 10**11
+    tmax = 10**9
     tout = 10**5
     dt = 10**4
     n = int(tmax/tout)
@@ -108,13 +107,18 @@ def run(row):
         t0, a0, e0, w0 = rungeKutta(t0, a0, e0, w0, m1,m2,t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x] = t0, a0, e0, w0
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww})
-    df.to_pickle("/home/adam/Projects/BinaryTidalEvolution/"+row['Name']+".p")
+    df.to_pickle("../../Projects/tidal/"+row['Name']+".p")
 
 
 import multiprocessing
 
 numcpu = multiprocessing.cpu_count()
 rows = [row for index, row in csv.iterrows()]
+
+if len(rows) % numcpu != 0:
+    batches = len(rows)/numcpu+1
+    numcpu = len(rows)/batches+1
+
 pool = mp.Pool(processes=numcpu)
 pool.map(run, rows)
 
