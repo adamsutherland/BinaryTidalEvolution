@@ -92,14 +92,14 @@ def dadt2(a,e,w,k,Tau,m1,m2,R):
         return 0
     else:
         q=m2/m1
-        return fob*-50*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
+        return fob*-20*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
 
 def dedt2(a,e,w,k,Tau,m1,m2,R):
     if Tau == 0:
         return 0
     else:
         q=m2/m1
-        return fob*-50*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
+        return fob*-20*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
 
 def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h): 
     # Count number of iterations using step size or 
@@ -188,7 +188,7 @@ def rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2,
         else:
             f1 = min(1.0,(Ptid/(2*Tau1))**2)
             #f1 = min(1.0,(Porb/(2*Tau1))**2)
-            #f1 = 1
+            f1 = 1
             k1 = 2.0/21.0 * f1 * MenvM1
         if Tau2 ==0:
             k2 =0
@@ -196,7 +196,7 @@ def rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2,
         else:
             f2 = min(1.0,(Ptid/(2*Tau2))**2)
             #f2 = min(1.0,(Porb/(2*Tau2))**2)
-            #f2 = 1
+            f2 = 1
             k2 = 2.0/21.0 * f2 * MenvM2
 
         k1a = h * dadt2(a0,e0,w0,k1,Tau1,m1, m2,R1) + h * dadt2(a0,e0,w0,k2,Tau2,m2, m1,R2)
@@ -219,7 +219,7 @@ def rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2,
     return t0, a0, e0, w0, f1, f2
 
 def run(row):
-    tmax = 10**10
+    tmax = 10**8
     tout = 10**5
     dt = 10**4
     n = int(tmax/tout)
@@ -227,9 +227,11 @@ def run(row):
     aa = np.zeros(n)
     ee = np.zeros(n)
     ww = np.zeros(n)
+    df2 = pd.read_pickle("../../Projects/tidal/forward/"+row['Name']+".p")
     print row['Name']
     m1,m2 = row["m1"], row["m2"]
     a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    a0,e0,w0 = df2["a"].iloc[-1], df2["e"].iloc[-1], df2["w"].iloc[-1]
     #a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
     t0 =0
@@ -307,22 +309,89 @@ def run_dual(row):
         t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/"+row['Name']+".p")
+    df.to_pickle("../../Projects/tidal/f20/"+row['Name']+".p")
 
+
+def R_M_env(m,R):
+    if m <= 0.35:
+        Renv = R
+        Menv = m
+    if (m > 0.35) & (m < 1.25):
+        Renv = 0.38*((1.25-m)/0.9)**.3
+        Menv = 0.35*((1.25-m)/0.9)**2.0
+    if m >= 1.25:
+        Renv = 0.0
+        Menv = 0.0
+    return Renv, Menv
+
+def run_dual_R_evo(row):
+    tmax = 10**10
+    tout = 10**5
+    dt = 10**4
+    n = int(tmax/tout)
+    tt = np.zeros(n)
+    aa = np.zeros(n)
+    ee = np.zeros(n)
+    ww = np.zeros(n)
+    ff1 = np.zeros(n)
+    ff2 = np.zeros(n)
+    
+    print row['Name']
+    m1,m2 = row["m1"], row["m2"]
+    a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    #a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
+    #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    t0 =0
+    
+    track = pd.read_csv("/home/adam/Projects/tidal/tracks/Z0.014Y0.273OUTA1.74_F7_M000.950.DAT",delim_whitespace=True)
+    track["R"] = 10**track.LOG_R/6.9598e10
+    track["L"] = 10**track.LOG_L
+    trmin = track.AGE[track.R==track.R.min()].values[0]
+    tzams = track.AGE[track.PHASE==5.0].values[0]
+    ttams = track.AGE[track.PHASE==8.0].values[0]
+    track_r=track[track.AGE>trmin]
+    
+    current_age = np.interp(row["R1"],track_r.R,track_r.AGE)
+    
+    
+    for x in xrange(n):
+   
+        #R1 = row["R1"]
+        R1 = np.interp(current_age-t0,track.AGE,track.R)
+        Renv1, Menv1 = R_M_env(m1,R1)
+        tau = (current_age-t0-tzams)/(ttams-tzams)
+        Renv1 = Renv1 * (1-tau)**.25
+        L1 = np.interp(current_age-t0,track.AGE,track.L)
+        L1 = (R1)**2 *(row["T1"]/5772.0)**4
+        Tau1 = 0.4311*((Menv1*Renv1*(R1-Renv1/2.))/(3.*L1))**(1./3.)
+        MenvM1 = Menv1/m1
+        R1 = R1/215.0
+        
+        R2 = row["R2"]
+        Renv2, Menv2 = R_M_env(m2,R2)
+        L2 = (R2)**2 *(row["T2"]/5772.0)**4
+        Tau2 = 0.4311*((Menv2*Renv2*(R2-Renv2/2.))/(3.*L2))**(1./3.)
+        MenvM2 = Menv2/m2
+        R2 = R2/215.0
+
+        t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
+        tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
+    df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
+    df.to_pickle("../../Projects/tidal/f20/"+row['Name']+"_1.p")
 
 import multiprocessing
 
 numcpu = multiprocessing.cpu_count()
 rows = [row for index, row in csv.iterrows()]
+#
+#if len(rows) % numcpu != 0:
+#    batches = len(rows)/numcpu+1
+#    numcpu = len(rows)/batches+1
+#
+#pool = mp.Pool(processes=numcpu)
+#pool.map(run_dual_R_evo, rows)
 
-if len(rows) % numcpu != 0:
-    batches = len(rows)/numcpu+1
-    numcpu = len(rows)/batches+1
-
-pool = mp.Pool(processes=numcpu)
-pool.map(run_dual, rows)
-
-
+run_dual_R_evo(rows[3])
 
 
 #for index, row in csv.iterrows():
