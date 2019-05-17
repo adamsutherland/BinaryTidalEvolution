@@ -56,7 +56,8 @@ def rt(m,t):
 
 csv = pd.read_csv("kepler_data.csv",delim_whitespace=True)
 csv = csv[(csv.Name != "47d")&(csv.Name != "47c")]
-#csv = csv[(csv.Name != "64b")]
+##csv = csv[(csv.Name != "64b")]
+
 
 
 rg2=0.1
@@ -92,14 +93,14 @@ def dadt2(a,e,w,k,Tau,m1,m2,R):
         return 0
     else:
         q=m2/m1
-        return fob*-20*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
+        return fob*-42*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
 
 def dedt2(a,e,w,k,Tau,m1,m2,R):
     if Tau == 0:
         return 0
     else:
         q=m2/m1
-        return fob*-20*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
+        return fob*-42*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
 
 def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h): 
     # Count number of iterations using step size or 
@@ -309,7 +310,7 @@ def run_dual(row):
         t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/f20/"+row['Name']+".p")
+    df.to_pickle("../../Projects/tidal/f50/"+row['Name']+".p")
 
 
 def R_M_env(m,R):
@@ -325,7 +326,20 @@ def R_M_env(m,R):
     return Renv, Menv
 
 def run_dual_R_evo(row):
-    tmax = 10**10
+    
+    track = pd.read_csv("/home/adam/Projects/tidal/tracks/"+row['Name']+".DAT",delim_whitespace=True)
+    track["R"] = 10**track.LOG_R/6.9598e10
+    track["L"] = 10**track.LOG_L
+    trmin = track.AGE[track.R==track.R.min()].values[0]
+    tzams = track.AGE[track.PHASE==5.0].values[0]
+    rzams = track.R[track.PHASE==5.0].values[0]
+    ttams = track.AGE[track.PHASE==8.0].values[0]
+    track_r=track[track.AGE>trmin]
+    
+    current_age = np.interp(row["R1"],track_r.R,track_r.AGE)    
+    #tmax = 10**10
+    tmax = current_age - tzams
+    print row['Name'], row["R1"], current_age, tmax, np.log10(tmax)
     tout = 10**5
     dt = 10**4
     n = int(tmax/tout)
@@ -343,26 +357,16 @@ def run_dual_R_evo(row):
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
     t0 =0
     
-    track = pd.read_csv("/home/adam/Projects/tidal/tracks/Z0.014Y0.273OUTA1.74_F7_M000.950.DAT",delim_whitespace=True)
-    track["R"] = 10**track.LOG_R/6.9598e10
-    track["L"] = 10**track.LOG_L
-    trmin = track.AGE[track.R==track.R.min()].values[0]
-    tzams = track.AGE[track.PHASE==5.0].values[0]
-    ttams = track.AGE[track.PHASE==8.0].values[0]
-    track_r=track[track.AGE>trmin]
-    
-    current_age = np.interp(row["R1"],track_r.R,track_r.AGE)
-    
-    
     for x in xrange(n):
    
         #R1 = row["R1"]
         R1 = np.interp(current_age-t0,track.AGE,track.R)
         Renv1, Menv1 = R_M_env(m1,R1)
-        tau = (current_age-t0-tzams)/(ttams-tzams)
-        Renv1 = Renv1 * (1-tau)**.25
+        Renv1 +=  R1 - rzams
+        #tau = (current_age-t0-tzams)/(ttams-tzams)
+        #Renv1 = Renv1 * (1-tau)**.25
         L1 = np.interp(current_age-t0,track.AGE,track.L)
-        L1 = (R1)**2 *(row["T1"]/5772.0)**4
+        #L1 = (R1)**2 *(row["T1"]/5772.0)**4
         Tau1 = 0.4311*((Menv1*Renv1*(R1-Renv1/2.))/(3.*L1))**(1./3.)
         MenvM1 = Menv1/m1
         R1 = R1/215.0
@@ -377,21 +381,27 @@ def run_dual_R_evo(row):
         t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/f20/"+row['Name']+"_1.p")
+    df.to_pickle("../../Projects/tidal/f35/"+row['Name']+"_2.p")
 
 import multiprocessing
 
+#csv = csv[csv.index < 5]
+#csv = csv[(csv.Name != "16b")]
+#csv = csv[(csv.Name != "35b")]
+csv = csv[(csv.Name == "34b")]
+
+
 numcpu = multiprocessing.cpu_count()
 rows = [row for index, row in csv.iterrows()]
-#
-#if len(rows) % numcpu != 0:
-#    batches = len(rows)/numcpu+1
-#    numcpu = len(rows)/batches+1
-#
-#pool = mp.Pool(processes=numcpu)
-#pool.map(run_dual_R_evo, rows)
 
-run_dual_R_evo(rows[3])
+if len(rows) % numcpu != 0:
+    batches = len(rows)/numcpu+1
+    numcpu = len(rows)/batches+1
+
+pool = mp.Pool(processes=numcpu)
+pool.map(run_dual, rows)
+
+#run_dual_R_evo(rows[3])
 
 
 #for index, row in csv.iterrows():
