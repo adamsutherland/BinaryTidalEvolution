@@ -54,6 +54,14 @@ def rt(m,t):
     alpha_r = 8.4300*10**-2
     logs = alpha_r * tau
 
+def L_Tout(m):
+    return (0.39704170*m**5.5+8.52762600*m**11)/(0.00025546+m**3+5.43288900*m**5+5.56357900*m**7+0.78866060*m**8+0.00586685*m**9.5)
+
+def R_Tout(m):
+    r1 = (1.71535900*m**2.5+ 6.59778800*m**6.5+ 10.08855000*m**11+ 1.01249500*m**19+ 0.07490166*m**19.5)
+    r2 = (0.01077422 + 3.08223400*m**2+ 17.84778000*m**8.5+ m**18.5+ 0.00022582*m**19.5)
+    return r1/r2
+
 csv = pd.read_csv("kepler_data.csv",delim_whitespace=True)
 csv = csv[(csv.Name != "47d")&(csv.Name != "47c")]
 ##csv = csv[(csv.Name != "64b")]
@@ -174,7 +182,7 @@ def rungeKuttaPS(t0, a0, e0, w0, m1, m2, R, MenvM, Tau, t, h):
     return t0, a0, e0, w0
 
 
-def rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t, h): 
+def rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t, h): 
     # for two stars 
     n = (int)((t - t0)/h)  
     # Iterate for number of iterations 
@@ -271,43 +279,28 @@ def run_dual(row):
     
     print row['Name']
     m1,m2 = row["m1"], row["m2"]
-    a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    #a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    a0,e0 = row['abin'],row['ebin']
     #a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
     t0 =0
     
     R1 = row["R1"]#/215.0
-    if m1 <= 0.35:
-        Renv1 = R1
-        Menv1 = m1
-    if (m1 > 0.35) & (m1 < 1.25):
-        Renv1 = 0.38*((1.25-m1)/0.9)**.3
-        Menv1 = 0.35*((1.25-m1)/0.9)**2.0
-    if m1 >= 1.25:
-        Renv1 = 0.0
-        Menv1 = 0.0
+    Renv1, Menv1 = R_M_env(m1,R1)
     L1 = (R1)**2 *(row["T1"]/5772.0)**4
     Tau1 = 0.4311*((Menv1*Renv1*(R1-Renv1/2.))/(3.*L1))**(1./3.)
     MenvM1 = Menv1/m1
     R1 = R1/215.0
     
     R2 = row["R2"]#/215.0
-    if m2 <= 0.35:
-        Renv2 = R2
-        Menv2 = m2
-    if (m2 > 0.35) & (m2 < 1.25):
-        Renv2 = 0.38*((1.25-m2)/0.9)**.3
-        Menv2 = 0.35*((1.25-m2)/0.9)**2.0
-    if m2 >= 1.25:
-        Renv2 = 0.0
-        Menv2 = 0.0
+    Renv2, Menv2 = R_M_env(m2,R2)
     L2 = (R2)**2 *(row["T2"]/5772.0)**4
     Tau2 = 0.4311*((Menv2*Renv2*(R2-Renv2/2.))/(3.*L2))**(1./3.)
     MenvM2 = Menv2/m2
     R2 = R2/215.0
     
     for x in xrange(n):
-        t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
+        t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
     df.to_pickle("../../Projects/tidal/f50/"+row['Name']+".p")
@@ -388,18 +381,18 @@ import multiprocessing
 #csv = csv[csv.index < 5]
 #csv = csv[(csv.Name != "16b")]
 #csv = csv[(csv.Name != "35b")]
-csv = csv[(csv.Name == "34b")]
-
-
-numcpu = multiprocessing.cpu_count()
-rows = [row for index, row in csv.iterrows()]
-
-if len(rows) % numcpu != 0:
-    batches = len(rows)/numcpu+1
-    numcpu = len(rows)/batches+1
-
-pool = mp.Pool(processes=numcpu)
-pool.map(run_dual, rows)
+#csv = csv[(csv.Name == "34b")]
+#
+#
+#numcpu = multiprocessing.cpu_count()
+#rows = [row for index, row in csv.iterrows()]
+#
+#if len(rows) % numcpu != 0:
+#    batches = len(rows)/numcpu+1
+#    numcpu = len(rows)/batches+1
+#
+#pool = mp.Pool(processes=numcpu)
+#pool.map(run_dual, rows)
 
 #run_dual_R_evo(rows[3])
 
