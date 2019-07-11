@@ -32,7 +32,7 @@ runs = glob.glob("../../Projects/tidal/popsynth/"+ftide+"/*.p")
 
 #runs = runs[::11]
 
-baseline = 0.5
+baseline = 1.5
 #baseline = 1.0
 #baseline = 1.5
 
@@ -61,7 +61,13 @@ for baseline in baselines:
             plt.plot(p0,e0,"x",c="red", alpha=0.5)
         else:
             plt.plot(p0,e0,".",c="blue", alpha=0.5)
-    
+            
+        if df.chaos.min() == -1.0:
+            plt.plot(p0,e0,"x",c="orange", alpha=0.5)
+        
+        elif df.chaos.max() > 0:
+            plt.plot(p0,e0,"+",c="green", alpha=0.5)  
+            
     kepler = [row1 for index1, row1 in csv.iterrows()]
     for kep in kepler:
         plt.plot(kep.Pbin,kep.ebin,"o",c="orange",)
@@ -73,7 +79,7 @@ for baseline in baselines:
     plt.ylabel("$e_{bin}$")
     #plt.show()
     plt.title("Max Period = "+str(baseline))
-    plt.savefig("/Users/adam/Projects/tidal/popsynth/stable"+str(baseline)+"_p.png")
+    plt.savefig("/Users/adam/Projects/tidal/popsynth/stable"+str(baseline)+"_N1.png")
     
     #plt.figure()
     #for run in runs:
