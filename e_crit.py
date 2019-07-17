@@ -142,6 +142,8 @@ def check_p_fast(row):
     check1 = 0
     overlap = False
     baseline = 1.5
+    if len(df[pd.isnull(df.a)])>0:
+        overlap = True
     for index2, row2 in df.iterrows():
         m1, m2 = row["m1"],row["m2"]
         a, e = row2["a"],row2["e"]
@@ -178,13 +180,13 @@ emin, emax = 0.01,.7
 P_b = 7.0
 P_b = 30
 
-pbs = 3*10**np.arange(0,1.1,.1)
+pbs = 3*10**np.arange(0,1.1,.05)
 #pbs = [3.0]
 
 for P_b in pbs:
     emin, emax = 0.01,.7
 
-    q0 = 0.6
+    q0 = 1.0
     
     m1 = 1.0
     m2 = m1*q0
