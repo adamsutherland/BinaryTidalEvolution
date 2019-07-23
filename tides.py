@@ -101,14 +101,14 @@ def dadt2(a,e,w,k,Tau,m1,m2,R):
         return 0
     else:
         q=m2/m1
-        return fob*-42*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
+        return fob*-30*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
 
 def dedt2(a,e,w,k,Tau,m1,m2,R):
     if Tau == 0:
         return 0
     else:
         q=m2/m1
-        return fob*-42*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
+        return fob*-30*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
 
 def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h): 
     # Count number of iterations using step size or 

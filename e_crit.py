@@ -9,8 +9,10 @@ Created on Fri Jul 12 15:48:13 2019
 import numpy as np
 import pandas as pd
 import imp
-tides = imp.load_source('tides', '/Users/adam/Code/BinaryTidalEvolution/tides.py')
-qs = imp.load_source('quicksilver', '/Users/adam/Code/quicksilver/quicksilver.py')
+tides = imp.load_source('tides', 'tides.py')
+#qs = imp.load_source('quicksilver', '/Users/adam/Code/quicksilver/quicksilver.py')
+qs = imp.load_source('quicksilver', '/home/adam/Code/analysis/quicksilver/quicksilver.py')
+
 
 import multiprocessing as mp
 
@@ -181,83 +183,87 @@ P_b = 7.0
 P_b = 30
 
 pbs = 3*10**np.arange(0,1.1,.05)
+#pbs = pbs[-1:]
 #pbs = [3.0]
-
-for P_b in pbs:
-    emin, emax = 0.01,.7
-
-    q0 = 1.0
+q = [0.2,0.6,1.0]
+#bases = [1.0,1.5]
+#for baseline in bases:
+for q0 in q:
+    for P_b in pbs:
+        emin, emax = 0.01,.7
     
-    m1 = 1.0
-    m2 = m1*q0
-    a = qs.sma(m1,m2,P_b)
-    r1 = tides.R_Tout(m1)
-    r2 = tides.R_Tout(m2)
-    l1 = tides.L_Tout(m1)
-    l2 = tides.L_Tout(m2)
-    count = 0
-    
-    f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","w+")
-    f0.close()
-    
-    for x in xrange(2):
-        print x
-        e_b = np.linspace(emin,emax,numcpu)
+        #q0 = 1.0
         
-        f0 = open("../../Projects/tidal/popsynth/e_crit/systems.txt","w+")
+        m1 = 1.0
+        m2 = m1*q0
+        a = qs.sma(m1,m2,P_b)
+        r1 = tides.R_Tout(m1)
+        r2 = tides.R_Tout(m2)
+        l1 = tides.L_Tout(m1)
+        l2 = tides.L_Tout(m2)
+        count = 0
         
-        for e in e_b:
-            f0.write(str(count).zfill(5)+", ")
-            f0.write(str(m1)+", ")
-            f0.write(str(m2)+", ")
-            f0.write(str(a)+", ")
-            f0.write(str(e)+", ")
-            f0.write(str(r1)+", ")
-            f0.write(str(r2)+", ")
-            f0.write(str(l1)+", ")
-            f0.write(str(l2)+"\n")
-            count += 1
+        f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","w+")
+        f0.close()
         
-        f0.close() 
-    
-        systems = qs.pd.read_csv("../../Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
-        rows = [row for index, row in systems.iterrows()]
-        
-        pool = mp.Pool(processes=numcpu)
-        pool.map(run_dual, rows)
-        
-        baseline = 1.5
-        
-        pool = mp.Pool(processes=numcpu)
-        pool.map(check_p_fast, rows)
-        
-        f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","a+")
-        
-        for name in systems.Name:
-            Name = str(int(name)).zfill(5)
-            df = pd.read_pickle("../../Projects/tidal/popsynth/e_crit/"+Name+".p")
-            name = name - count+8
-            f0.write(Name+", "+str(systems.iloc[name].ebin)+", "+str(df.chaos.max())+", "+str(df.chaos.min())+"\n" )
+        for x in xrange(1):
+            print x
+            e_b = np.linspace(emin,emax,numcpu)
             
+            f0 = open("../../Projects/tidal/popsynth/e_crit/systems.txt","w+")
+            
+            for e in e_b:
+                f0.write(str(count).zfill(5)+", ")
+                f0.write(str(m1)+", ")
+                f0.write(str(m2)+", ")
+                f0.write(str(a)+", ")
+                f0.write(str(e)+", ")
+                f0.write(str(r1)+", ")
+                f0.write(str(r2)+", ")
+                f0.write(str(l1)+", ")
+                f0.write(str(l2)+"\n")
+                count += 1
+            
+            f0.close() 
+        
+            systems = qs.pd.read_csv("../../Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
+            rows = [row for index, row in systems.iterrows()]
+            
+            pool = mp.Pool(processes=numcpu)
+            pool.map(run_dual, rows)
+            
+            #baseline = 1.5
+            
+            pool = mp.Pool(processes=numcpu)
+            pool.map(check_p_fast, rows)
+            
+            f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","a+")
+            
+            for name in systems.Name:
+                Name = str(int(name)).zfill(5)
+                df = pd.read_pickle("../../Projects/tidal/popsynth/e_crit/"+Name+".p")
+                name = name - count+8
+                f0.write(Name+", "+str(df.e.min())+", "+str(df.chaos.max())+", "+str(df.chaos.min())+"\n" )
+                
+            f0.close() 
+            
+            results = pd.read_csv("../../Projects/tidal/popsynth/e_crit/results.txt",names=["Name","ebin","cmax","cmin"])
+            
+            if len(results[results.cmin==-1])==0:
+                ecrit = 1.0
+                break
+            elif len(results[results.cmin!=-1])==0:
+                ecrit = 0.0
+                break
+            else:
+                emin = results[results.cmin!=-1].ebin.max()
+                emax = results[results.cmin==-1].ebin.min()
+                ecrit = (emax+emin)/2
+        
+        
+        f0 = open("../../Projects/tidal/popsynth/e_crit/meta_results_15.txt","a+")
+        f0.write(str(q0)+", "+str(P_b)+", "+str(ecrit)+"\n")
         f0.close() 
-        
-        results = pd.read_csv("../../Projects/tidal/popsynth/e_crit/results.txt",names=["Name","ebin","cmax","cmin"])
-        
-        if len(results[results.cmin==-1])==0:
-            ecrit = 1.0
-            break
-        elif len(results[results.cmin!=-1])==0:
-            ecrit = 0.0
-            break
-        else:
-            emin = results[results.cmin!=-1].ebin.max()
-            emax = results[results.cmin==-1].ebin.min()
-            ecrit = (emax+emin)/2
-    
-    
-    f0 = open("../../Projects/tidal/popsynth/e_crit/meta_results.txt","a+")
-    f0.write(str(q0)+", "+str(P_b)+", "+str(ecrit)+"\n")
-    f0.close() 
 
 
 
