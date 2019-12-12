@@ -99,19 +99,22 @@ def ps(e):
     return ps1/ps2
 
 # equations for PS tides
+
+ftide = 50    
+
 def dadt2(a,e,w,k,Tau,m1,m2,R):
     if Tau == 0:
         return 0
     else:
         q=m2/m1
-        return fob*-30*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
+        return fob*-ftide*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* ps(e) )
 
 def dedt2(a,e,w,k,Tau,m1,m2,R):
     if Tau == 0:
         return 0
     else:
         q=m2/m1
-        return fob*-30*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
+        return fob*-ftide*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
 
 def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h):
     # Count number of iterations using step size or 
@@ -317,7 +320,7 @@ def run_dual(row):
         t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/f50/"+row['Name']+".p")
+    df.to_pickle("../../Projects/tidal/f"+str(ftide)+"/"+row['Name']+".p")
 
 
 def R_M_env(m,R):
@@ -359,7 +362,8 @@ def run_dual_R_evo(row):
     
     print row['Name']
     m1,m2 = row["m1"], row["m2"]
-    a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    #a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
+    a0,e0 = row['abin'],row['ebin']
     #a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
     t0 =0
@@ -385,10 +389,10 @@ def run_dual_R_evo(row):
         MenvM2 = Menv2/m2
         R2 = R2/215.0
 
-        t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, w0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
+        t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/f35/"+row['Name']+"_2.p")
+    df.to_pickle("../../Projects/tidal/f"+str(ftide)+"/"+row['Name']+"_evo.p")
 
 import multiprocessing
 
@@ -409,11 +413,11 @@ rows = [row for index, row in csv.iterrows()]
 #pool.map(run_dual, rows)
 
 #limit csv to just values with radius evolution:
-#csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
-#rows = [row for index, row in csv.iterrows()]
+csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
+rows = [row for index, row in csv.iterrows()]
 
-#pool = mp.Pool(processes=numcpu)
-#pool.map(run_dual_R_evo, rows)
+pool = mp.Pool(processes=numcpu)
+pool.map(run_dual_R_evo, rows)
 
 # to run just one at a time:
 #run_dual(rows[3])

@@ -167,16 +167,17 @@ def check_p_fast(row):
     #Name = str(int(row['Name'])).zfill(5)
     Name = row['Name']
     print Name
-    df = pd.read_pickle("/home/adam/old_disk/adam/Projects/tidal/"+ftide+"/"+Name+".p")
+    df = pd.read_pickle("/home/adam/Projects/tidal/"+ftide+"/"+Name+".p")
     chaos = np.array([])
     check1 = 0
     overlap = False
     for index2, row2 in df.iterrows():
         m1, m2 = row["m1"],row["m2"]
         a, e = row2["a"],row2["e"]
-        ap = qs.sma(m1, m2,365*baseline)
+        ap = row["ap"]
         #ep = e*a/ap*(m1-m2)/(m1+m2)/0.4115 # uncomment for secular eccentricity
-        ep = 0.05 # set planet eccentricity
+        ep = row["ep"]
+        #ep = 0.05 # set planet eccentricity
         if overlap:
             check0 = -1
         else:
@@ -186,14 +187,15 @@ def check_p_fast(row):
                 overlap = True
         chaos = np.append(chaos,check0)
         check1 = check0
-    df["chaos_05"] = chaos
+    #df["chaos_05"] = chaos # this name can be changed and new dataframes 
+    df["chaos_ep"] = chaos # measureing different eccentricities
     print chaos.max()
-    df.to_pickle("../../Projects/tidal/popsynth/"+ftide+"/"+Name+".p")
+    df.to_pickle("../../Projects/tidal/"+ftide+"/"+Name+".p")
 
 import multiprocessing as mp
 
 #systems = qs.pd.read_csv("../../Projects/tidal/popsynth/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
-systems = qs.pd.read_csv("/home/adam/old_disk/adam/Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
+#systems = qs.pd.read_csv("/home/adam/old_disk/adam/Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
 
 systems = csv
 
@@ -204,12 +206,18 @@ systems = csv
 numcpu = mp.cpu_count()
 rows = [row for index, row in systems.iterrows()]
 
+#limit csv to just values with radius evolution:
+csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
+rows = [row for index, row in csv.iterrows()]
 
 if len(rows) % numcpu != 0:
     batches = len(rows)/numcpu+1
     numcpu = len(rows)/batches+1
+
 pool = mp.Pool(processes=numcpu)
 pool.map(check_p_fast, rows)
+
+
 
 
 ### code for 
