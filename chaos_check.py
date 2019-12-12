@@ -168,6 +168,7 @@ def check_p_fast(row):
     Name = row['Name']
     print Name
     df = pd.read_pickle("/home/adam/Projects/tidal/"+ftide+"/"+Name+".p")
+    #df = pd.read_pickle("/home/adam/Projects/tidal/"+ftide+"/"+Name+"_evo.p") #for radius evolution
     chaos = np.array([])
     check1 = 0
     overlap = False
@@ -207,8 +208,8 @@ numcpu = mp.cpu_count()
 rows = [row for index, row in systems.iterrows()]
 
 #limit csv to just values with radius evolution:
-csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
-rows = [row for index, row in csv.iterrows()]
+#csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
+#rows = [row for index, row in csv.iterrows()]
 
 if len(rows) % numcpu != 0:
     batches = len(rows)/numcpu+1

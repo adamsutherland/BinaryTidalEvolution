@@ -413,11 +413,11 @@ rows = [row for index, row in csv.iterrows()]
 #pool.map(run_dual, rows)
 
 #limit csv to just values with radius evolution:
-csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
-rows = [row for index, row in csv.iterrows()]
+#csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
+#rows = [row for index, row in csv.iterrows()]
 
-pool = mp.Pool(processes=numcpu)
-pool.map(run_dual_R_evo, rows)
+#pool = mp.Pool(processes=numcpu)
+#pool.map(run_dual_R_evo, rows)
 
 # to run just one at a time:
 #run_dual(rows[3])

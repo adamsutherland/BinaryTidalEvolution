@@ -9,9 +9,9 @@ Making critical eccentricity curves.
 import numpy as np
 import pandas as pd
 import imp
-tides = imp.load_source('tides', 'tides.py')
+tides = imp.load_source('tides', 'tides.py') # make sure the actual runs part of the tides code is commented out
 #qs = imp.load_source('quicksilver', '/Users/adam/Code/quicksilver/quicksilver.py')
-qs = imp.load_source('quicksilver', '/home/adam/Code/analysis/quicksilver/quicksilver.py')
+qs = imp.load_source('quicksilver', '/home/adam/Code/quicksilver/quicksilver.py')
 
 
 import multiprocessing as mp
@@ -58,7 +58,7 @@ def run_dual(row):
         for x in xrange(n):
             t0, a0, e0, w0, f1, f2 = tides.rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
             tt[x], aa[x], ee[x], ww[x] = t0, a0, e0, w0
-        df = tides.pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww})
+        df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww})
         df.to_pickle("../../Projects/tidal/popsynth/e_crit/"+str(int(row['Name'])).zfill(5)+".p")
 
 
@@ -208,7 +208,7 @@ for q0 in q:
         f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","w+")
         f0.close()
         
-        for x in xrange(1): # refinement for number of interations, depends on resolution needed and number of threads
+        for x in xrange(3): # refinement for number of interations, depends on resolution needed and number of threads
             print x
             e_b = np.linspace(emin,emax,numcpu) # the resulution is based on your number of threads
             
