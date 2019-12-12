@@ -12,15 +12,19 @@ import pandas as pd
 
 
 import imp
-qs = imp.load_source('quicksilver', '/Users/adam/Code/quicksilver/quicksilver.py')
+qs = imp.load_source('quicksilver', '../quicksilver/quicksilver.py')
 #reso = imp.load_source('resonances', '/home/adam/Code/analysis/resonances/reso.py')
 
 csv = pd.read_csv("kepler_data.csv",delim_whitespace=True)
 csv = csv[(csv.Name != "47d")&(csv.Name != "47c")]
-csv = csv[(csv.Name == "34b")]
+#csv = csv[(csv.Name == "34b")]
 #csv = csv[csv.index < 5]
 #csv = csv[(csv.Name != "16b")]
 #csv = csv[(csv.Name != "35b")]
+
+
+# checking so many points for resonance overlap can take a while so these
+# are optimized versions of some of the frequenly called functions in quicksilver
 
 def mmm_factors(mp,ms,d):
     f1 = qs.G*45*mp*ms*(mp**2-mp*ms+ms**2)*d**4
@@ -52,6 +56,7 @@ def hwac(e,mu):
     return 1.60+5.10*e-2.22*e**2+4.12*mu-4.27*e*mu-5.09*mu**2+4.61*e**2*mu**2
 
 def check(m1,m2,d,ei,eo,ap):
+    """Returns if the planet is inside an N:1 resonance. See check_fast instead."""
     n1 = qs.mean_mo(m1,m2,d)
     n = int(n1/qs.mod_mean_mo(m1,m2,d,ap))
     width = qs.sigma_mard(m1,m2,0.,eo,ei,n)
@@ -87,14 +92,15 @@ def check(m1,m2,d,ei,eo,ap):
     return inside#, a
 
 def check_fast(m1,m2,d,ei,eo,ap):
+    """Faster version of check. d is binary separation, ei is binary eccentricity"""
     f1, f2, f3, f4 = mmm_factors(m1,m2,d)
     n1 = qs.mean_mo(m1,m2,d)
     n = int(n1/mmm_fast(f1,f2,f3,f4,ap))
-    if n>40:
+    if n>40: # we only check resonances between 4:1 and 40:1
         inside = 0
     elif n<4:
         inside = 0
-    else:
+    else: # first calculate the width of the resonance interior
         width = qs.sigma_mard(m1,m2,0.,eo,ei,n)
         a = mod_a_from_n(m1,m2,d,n1/(n),f1,f2,f3,f4)
         wdot = mmm_fast(f1,f2,f3,f4,a)-qs.mod_epic(m1,m2,d,a)
@@ -108,12 +114,12 @@ def check_fast(m1,m2,d,ei,eo,ap):
                 inside = 0
         else:
             inside = 0
-        if inside < 1:
+        if inside < 1: # then the resonance just exterior 
             n +=1
             width = qs.sigma_mard(m1,m2,0.,eo,ei,n)
             a = mod_a_from_n(m1,m2,d,n1/(n),f1,f2,f3,f4)
             wdot = mmm_fast(f1,f2,f3,f4,a)-qs.mod_epic(m1,m2,d,a)
-            wdot *=(1+1.5*ei**2)
+            wdot *=(1+1.5*ei**2) #precession offset
             n2 = (n1+(n-1)*wdot)/(n)
     
             if ap > mod_a_from_n(m1,m2,d,n1/(-width+n1/n2),f1,f2,f3,f4):
@@ -123,9 +129,10 @@ def check_fast(m1,m2,d,ei,eo,ap):
                     inside = 0
             else:
                 inside = 0
+    # returns N if inside a resonance or the lower N if in overlap
     return inside#, a
 
-ftide = "f30"
+ftide = "f50"
 
 
 baseline = 1.5
@@ -157,9 +164,10 @@ def check_p(row):
     df.to_pickle("../../Projects/tidal/popsynth/"+ftide+"/"+Name+".p")
     
 def check_p_fast(row):
-    Name = str(int(row['Name'])).zfill(5)
+    #Name = str(int(row['Name'])).zfill(5)
+    Name = row['Name']
     print Name
-    df = pd.read_pickle("../../Projects/tidal/popsynth/"+ftide+"/"+Name+".p")
+    df = pd.read_pickle("/home/adam/old_disk/adam/Projects/tidal/"+ftide+"/"+Name+".p")
     chaos = np.array([])
     check1 = 0
     overlap = False
@@ -167,8 +175,8 @@ def check_p_fast(row):
         m1, m2 = row["m1"],row["m2"]
         a, e = row2["a"],row2["e"]
         ap = qs.sma(m1, m2,365*baseline)
-        #ep = e*a/ap*(m1-m2)/(m1+m2)/0.4115
-        ep = 0.05
+        #ep = e*a/ap*(m1-m2)/(m1+m2)/0.4115 # uncomment for secular eccentricity
+        ep = 0.05 # set planet eccentricity
         if overlap:
             check0 = -1
         else:
@@ -184,7 +192,10 @@ def check_p_fast(row):
 
 import multiprocessing as mp
 
-systems = qs.pd.read_csv("../../Projects/tidal/popsynth/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
+#systems = qs.pd.read_csv("../../Projects/tidal/popsynth/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
+systems = qs.pd.read_csv("/home/adam/old_disk/adam/Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
+
+systems = csv
 
 #systems = systems[systems.Name>406]
 #systems = systems[systems.Name<408]
@@ -193,12 +204,16 @@ systems = qs.pd.read_csv("../../Projects/tidal/popsynth/systems.txt", names=["Na
 numcpu = mp.cpu_count()
 rows = [row for index, row in systems.iterrows()]
 
+
 if len(rows) % numcpu != 0:
     batches = len(rows)/numcpu+1
     numcpu = len(rows)/batches+1
 pool = mp.Pool(processes=numcpu)
 pool.map(check_p_fast, rows)
 
+
+### code for 
+    
 #for row in rows:
 #    Name = str(int(row['Name'])).zfill(5)
 #    print Name

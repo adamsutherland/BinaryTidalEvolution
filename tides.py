@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 
 
-
+# Eccentricity functions
 
 def f1(e2):
     return 1 + 31./2 *e2**2 + 255./8 *e2**4 + 185./16 *e2**6 + 25./64 *e2**8
@@ -63,16 +63,17 @@ def R_Tout(m):
     return r1/r2
 
 csv = pd.read_csv("kepler_data.csv",delim_whitespace=True)
-csv = csv[(csv.Name != "47d")&(csv.Name != "47c")]
+csv = csv[(csv.Name != "47d")&(csv.Name != "47c")] # removes redundant planets
 ##csv = csv[(csv.Name != "64b")]
 
 
 
-rg2=0.1
-G = 4.0*np.pi**2
-#R = 1./215
-fob = -1
+rg2=0.1 # radius of gyration
+G = 4.0*np.pi**2 # gravity constant
+#R = 1./215 # conversion between AU and stellar radius
+fob = -1 # forward or backward evolution, backward -1
 
+# tidal evolution equations with rotation
 def dadt(a,e,w,k,Tau,m1,m2,R):
     q=m2/m1
     return fob*-50*6*k/Tau*q*(1 + q)*(R/a)**8*a/(1 - (e)**2)**(15./2) * (f1(e) - (1 - (e)**2)**(3./2)*f2(e)* w/((G*(m1+m2))**(1./2.)*(a)**(-3./2)))
@@ -91,11 +92,13 @@ def dwdt(a,e,w,k,Tau,m1,m2,R):
 def ps_approx(e):
     return 1. + 6*e**2 + 3./8.*e**4 + 223./8.*e**6
 
+# pseudo-synchronous ratio for ecc
 def ps(e):
     ps1 = 1+15./2.*e**2+ 45./8.*e**4 + 5./16.*e**6
     ps2 = (1+3.*e**2+3./8.*e**4)*(1-e**2)**1.5
     return ps1/ps2
 
+# equations for PS tides
 def dadt2(a,e,w,k,Tau,m1,m2,R):
     if Tau == 0:
         return 0
@@ -110,7 +113,7 @@ def dedt2(a,e,w,k,Tau,m1,m2,R):
         q=m2/m1
         return fob*-30*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
 
-def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h): 
+def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h):
     # Count number of iterations using step size or 
     # step height h 
     n = (int)((t - t0)/h)  
@@ -182,15 +185,20 @@ def rungeKuttaPS(t0, a0, e0, w0, m1, m2, R, MenvM, Tau, t, h):
     return t0, a0, e0, w0
 
 
-def rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t, h): 
+def rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t, h):
+    """RK4 for pseudo-synchronous case considering tides from both stars. t0,
+    a0, e0 are the initial time, sma, and eccentricity. m1, m2, R1, R2 are the
+    masses and radii of the stars. MenvM1, MenvM2, Tau1, Tau2 are the masses of 
+    the envelopes and timescales. t is the final time and h is step size for 
+    the integration"""
     # for two stars 
     n = (int)((t - t0)/h)  
     # Iterate for number of iterations 
-    w0 = ps(e0)* ((G*(m1+m2))**(1./2.)*(a0)**(-3./2))
+    w0 = ps(e0)* ((G*(m1+m2))**(1./2.)*(a0)**(-3./2)) # initial spin
     for i in range(1, n + 1): 
-        "Apply Runge Kutta Formulas to find next value of y"
+        "Apply Runge Kutta Formulas to find next values"
         Ptid = (abs((G*(m1+m2))**(1./2.)*(a0)**(-3./2)-w0))**-1
-        Porb =  1/((G*(m1+m2))**(1./2.)*(a0)**(-3./2))
+        Porb =  1/((G*(m1+m2))**(1./2.)*(a0)**(-3./2)) # not actually used
         if Tau1 ==0:
             k1 =0
             f1 =0
@@ -217,34 +225,39 @@ def rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t, 
         k4a = h * dadt2(a0 + k3a, e0 + k3e,w0,k1,Tau1,m1, m2,R1) + h * dadt2(a0 + k3a, e0 + k3e,w0,k2,Tau2,m2, m1,R2)
         k4e = h * dedt2(a0 + k3a, e0 + k3e,w0,k1,Tau1,m1, m2,R1) + h * dedt2(a0 + k3a, e0 + k3e,w0,k2,Tau2,m2, m1,R2)
   
-        # Update next value of y 
+        # Update next values
         a0 = a0 + (1.0 / 6.0)*(k1a + 2 * k2a + 2 * k3a + k4a)
         e0 = e0 + (1.0 / 6.0)*(k1e + 2 * k2e + 2 * k3e + k4e)
         w0 = ps(e0)* ((G*(m1+m2))**(1./2.)*(a0)**(-3./2))
 
   
-        # Update next value of x 
+        # Update next time
         t0 = t0 + h 
+        # Also tracks f1 and f2 which are good diagnostics 
     return t0, a0, e0, w0, f1, f2
 
 def run(row):
-    tmax = 10**8
-    tout = 10**5
-    dt = 10**4
+    """There are more comments on this function but run_dual should be used for
+    all runs, regardless of secondary size. Probably deprecated"""
+    tmax = 10**8 # the time for the integration
+    tout = 10**5 # timestep between outputs
+    dt = 10**4 # timestep for integration
     n = int(tmax/tout)
+    # initialize arrays of the 
     tt = np.zeros(n)
     aa = np.zeros(n)
     ee = np.zeros(n)
-    ww = np.zeros(n)
-    df2 = pd.read_pickle("../../Projects/tidal/forward/"+row['Name']+".p")
+    ww = np.zeros(n) # tracking spin even though it is set by PS
+    #df2 = pd.read_pickle("../../Projects/tidal/forward/"+row['Name']+".p")
     print row['Name']
     m1,m2 = row["m1"], row["m2"]
     a0,e0,w0 = row['abin'],row['ebin'],(G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
-    a0,e0,w0 = df2["a"].iloc[-1], df2["e"].iloc[-1], df2["w"].iloc[-1]
+    #a0,e0,w0 = df2["a"].iloc[-1], df2["e"].iloc[-1], df2["w"].iloc[-1]
     #a0,e0,w0 = row['abin'],row['ebin'],2.0*np.pi/(row['Prot']/365.0)
     #print 2.0*np.pi/(row['Prot']/365.0), (G*(m1+m2))**(1./2.)*row['abin']**(-3./2)*row['Pbin']/row['Prot']
     t0 =0
-    R = row["R1"]#/215.0
+    # setting the mass and radius of the envelope.
+    R = row["R1"]#/215.0 #should be in solar units
     if m1 <= 0.35:
         Renv = R
         Menv = m1
@@ -258,10 +271,11 @@ def run(row):
     #print row['Name'],m1, Menv, R, Renv
     Tau = 0.4311*((Menv*Renv*(R-Renv/2.))/(3.*L))**(1./3.)
     MenvM = Menv/m1
-    R = R/215.0
+    R = R/215.0 # converting to AU
     for x in xrange(n):
         t0, a0, e0, w0 = rungeKuttaPS(t0, a0, e0, w0, m1,m2,R,MenvM,Tau,t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x] = t0, a0, e0, w0
+    # data is saved as a pandas dataframe in the pickle format.
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww})
     df.to_pickle("../../Projects/tidal/"+row['Name']+".p")
     
@@ -319,15 +333,15 @@ def R_M_env(m,R):
     return Renv, Menv
 
 def run_dual_R_evo(row):
-    
+    """Accounts for radius evolution. Reads in stellar evolution track."""
     track = pd.read_csv("/home/adam/Projects/tidal/tracks/"+row['Name']+".DAT",delim_whitespace=True)
     track["R"] = 10**track.LOG_R/6.9598e10
     track["L"] = 10**track.LOG_L
-    trmin = track.AGE[track.R==track.R.min()].values[0]
-    tzams = track.AGE[track.PHASE==5.0].values[0]
-    rzams = track.R[track.PHASE==5.0].values[0]
-    ttams = track.AGE[track.PHASE==8.0].values[0]
-    track_r=track[track.AGE>trmin]
+    trmin = track.AGE[track.R==track.R.min()].values[0] # time at minimum radius
+    tzams = track.AGE[track.PHASE==5.0].values[0] # age at PHASE 5, ZAMS
+    rzams = track.R[track.PHASE==5.0].values[0] # radius at ZAMS
+    ttams = track.AGE[track.PHASE==8.0].values[0] # time of TAMS
+    track_r=track[track.AGE>trmin] # removes preMS part of track
     
     current_age = np.interp(row["R1"],track_r.R,track_r.AGE)    
     #tmax = 10**10
@@ -378,22 +392,31 @@ def run_dual_R_evo(row):
 
 import multiprocessing
 
-#csv = csv[csv.index < 5]
-#csv = csv[(csv.Name != "16b")]
-#csv = csv[(csv.Name != "35b")]
-#csv = csv[(csv.Name == "34b")]
-#
-#
-#numcpu = multiprocessing.cpu_count()
-#rows = [row for index, row in csv.iterrows()]
-#
+
+numcpu = multiprocessing.cpu_count()
+rows = [row for index, row in csv.iterrows()]
+
+# uncomment to run 
+
+
+# efficiently splits processes between cores
 #if len(rows) % numcpu != 0:
 #    batches = len(rows)/numcpu+1
 #    numcpu = len(rows)/batches+1
-#
+
+# multiprocessing for all 
 #pool = mp.Pool(processes=numcpu)
 #pool.map(run_dual, rows)
 
+#limit csv to just values with radius evolution:
+#csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
+#rows = [row for index, row in csv.iterrows()]
+
+#pool = mp.Pool(processes=numcpu)
+#pool.map(run_dual_R_evo, rows)
+
+# to run just one at a time:
+#run_dual(rows[3])
 #run_dual_R_evo(rows[3])
 
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jul 16 12:21:52 2019
-
+Program for plotting e_crit results.
 @author: adam
 """
 

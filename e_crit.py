@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jul 12 15:48:13 2019
-
+Making critical eccentricity curves.
 @author: adam
 """
 
@@ -97,6 +97,7 @@ def hwac(e,mu):
 
 
 def check_fast(m1,m2,d,ei,eo,ap):
+    """"checks if the planet is in a resonance"""
     f1, f2, f3, f4 = mmm_factors(m1,m2,d)
     n1 = qs.mean_mo(m1,m2,d)
     n = int(n1/mmm_fast(f1,f2,f3,f4,ap))
@@ -137,13 +138,14 @@ def check_fast(m1,m2,d,ei,eo,ap):
 
 
 def check_p_fast(row):
+    """saves another column of data with which N:1 the planet is in"""
     Name = str(int(row['Name'])).zfill(5)
     print Name
     df = pd.read_pickle("../../Projects/tidal/popsynth/e_crit/"+Name+".p")
     chaos = np.array([])
     check1 = 0
     overlap = False
-    baseline = 1.5
+    baseline = 1.5 # set the baseline here manually.
     if len(df[pd.isnull(df.a)])>0:
         overlap = True
     for index2, row2 in df.iterrows():
@@ -151,8 +153,8 @@ def check_p_fast(row):
         a, e = row2["a"],row2["e"]
         ap = qs.sma(m1, m2,365*baseline)
         es = e*a/ap*(m1-m2)/(m1+m2)/0.4115
-        ef = 0.03
-        ep = ef+es
+        ef = 0.03 # set free eccentricity 
+        ep = ef+es # set planet eccentricity manually or from a sum of secular and free
         if a>ap:
             check0 = -1
         else:
@@ -206,9 +208,9 @@ for q0 in q:
         f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","w+")
         f0.close()
         
-        for x in xrange(1):
+        for x in xrange(1): # refinement for number of interations, depends on resolution needed and number of threads
             print x
-            e_b = np.linspace(emin,emax,numcpu)
+            e_b = np.linspace(emin,emax,numcpu) # the resulution is based on your number of threads
             
             f0 = open("../../Projects/tidal/popsynth/e_crit/systems.txt","w+")
             
@@ -229,36 +231,38 @@ for q0 in q:
             systems = qs.pd.read_csv("../../Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
             rows = [row for index, row in systems.iterrows()]
             
+            # the tidal evolution code
             pool = mp.Pool(processes=numcpu)
             pool.map(run_dual, rows)
-            
-            #baseline = 1.5
-            
+                  
+            # processing the results to see if the planet survives
             pool = mp.Pool(processes=numcpu)
             pool.map(check_p_fast, rows)
             
+            # writes results to a file
             f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","a+")
             
             for name in systems.Name:
                 Name = str(int(name)).zfill(5)
                 df = pd.read_pickle("../../Projects/tidal/popsynth/e_crit/"+Name+".p")
                 name = name - count+8
+                # saves Name, min ecc, and which resonances the planet passes through
                 f0.write(Name+", "+str(df.e.min())+", "+str(df.chaos.max())+", "+str(df.chaos.min())+"\n" )
                 
             f0.close() 
             
             results = pd.read_csv("../../Projects/tidal/popsynth/e_crit/results.txt",names=["Name","ebin","cmax","cmin"])
             
-            if len(results[results.cmin==-1])==0:
+            if len(results[results.cmin==-1])==0: # all were unstable
                 ecrit = 1.0
                 break
-            elif len(results[results.cmin!=-1])==0:
+            elif len(results[results.cmin!=-1])==0: # all were stable
                 ecrit = 0.0
                 break
-            else:
-                emin = results[results.cmin!=-1].ebin.max()
-                emax = results[results.cmin==-1].ebin.min()
-                ecrit = (emax+emin)/2
+            else: # some were stable, others were unstable
+                emin = results[results.cmin!=-1].ebin.max() # most eccentric stable run
+                emax = results[results.cmin==-1].ebin.min() # least eccentric unstable run
+                ecrit = (emax+emin)/2 # average of the two as result
         
         
         f0 = open("../../Projects/tidal/popsynth/e_crit/meta_results_15.txt","a+")

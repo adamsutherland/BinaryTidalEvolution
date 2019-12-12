@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jun 18 14:07:07 2019
-
+Old version of pop synth. Use e_crit.py instead.
 @author: adam
 """
 

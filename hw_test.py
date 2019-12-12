@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Jul 22 14:19:03 2019
-
+A comparison between resonant overlap and HW.
 @author: adam
 """
 

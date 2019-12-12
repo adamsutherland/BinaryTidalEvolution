@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jun 19 00:01:18 2019
-
+No longer used. Program for plotting the popsynth program. 
 @author: adam
 """
 
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import imp
 qs = imp.load_source('quicksilver', '/Users/adam/Code/quicksilver/quicksilver.py')
 
-def hwac(e,mu):
+def hwac(e,mu): # Holman & Weigert
     return 1.60+5.10*e-2.22*e**2+4.12*mu-4.27*e*mu-5.09*mu**2+4.61*e**2*mu**2
 
 
