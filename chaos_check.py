@@ -135,7 +135,7 @@ def check_fast(m1,m2,d,ei,eo,ap):
 ftide = "f50"
 
 
-baseline = 1.5
+#baseline = 1.5 #planet period in years, not needed here
 
 def check_row(row):
     print row["Name"]
@@ -155,7 +155,8 @@ def check_p(row):
     df = pd.read_pickle("../../Projects/tidal/popsynth/"+ftide+"/"+Name+".p")
     chaos = np.array([])
     for index2, row2 in df.iterrows():
-        ap = qs.sma(row["m1"],row["m2"],365*baseline)
+        #ap = qs.sma(row["m1"],row["m2"],365*baseline)
+        ap = row["ap"]
         ep = row2["e"]*row2["a"]/ap*(row["m1"]-row["m2"])/(row["m1"]+row["m2"])/0.4115
         #ep = row["ep"]
         chaos = np.append(chaos,check_fast(row["m1"],row["m2"],row2["a"],row2["e"],ep,ap))
@@ -195,17 +196,9 @@ def check_p_fast(row):
 
 import multiprocessing as mp
 
-#systems = qs.pd.read_csv("../../Projects/tidal/popsynth/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
-#systems = qs.pd.read_csv("/home/adam/old_disk/adam/Projects/tidal/popsynth/e_crit/systems.txt", names=["Name","m1","m2","abin","ebin","R1","R2","L1","L2"])
-
-systems = csv
-
-#systems = systems[systems.Name>406]
-#systems = systems[systems.Name<408]
-
 
 numcpu = mp.cpu_count()
-rows = [row for index, row in systems.iterrows()]
+rows = [row for index, row in csv.iterrows()]
 
 #limit csv to just values with radius evolution:
 #csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]

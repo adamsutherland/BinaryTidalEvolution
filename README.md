@@ -37,7 +37,7 @@ pool = mp.Pool(processes=numcpu)
 pool.map(run_dual, rows)
 ```
 
-This will read a csv file with the Kepler results and ouput the tidal evolution for all systems. Changing `ftide` (line 103) to your required value.
+This will read a csv file with the Kepler results and ouput the tidal evolution for all systems. Changing `ftide` (around line 108) to your required value. Make an output directory that replaces "../../Projects/tidal/50/".
 
 Run tides.py
 

@@ -19,6 +19,7 @@ import multiprocessing as mp
 numcpu = mp.cpu_count()
 
 def run_dual(row):
+    """Version of run_dual_PS."""
     fileexists = False
     #print "name = ",str(int(row['Name']))
     #for s in runs:
@@ -101,15 +102,15 @@ def check_fast(m1,m2,d,ei,eo,ap):
     f1, f2, f3, f4 = mmm_factors(m1,m2,d)
     n1 = qs.mean_mo(m1,m2,d)
     n = int(n1/mmm_fast(f1,f2,f3,f4,ap))
-    if n>40:
+    if n>40: #ignores resonances above 40:1
         inside = 0
-    elif n<4:
+    elif n<4: #ignores resonances 3:1 and below
         inside = 0
     else:
         width = qs.sigma_mard(m1,m2,0.,eo,ei,n)
         a = mod_a_from_n(m1,m2,d,n1/(n),f1,f2,f3,f4)
-        wdot = mmm_fast(f1,f2,f3,f4,a)-qs.mod_epic(m1,m2,d,a)
-        wdot *=(1+1.5*ei**2)
+        wdot = mmm_fast(f1,f2,f3,f4,a)-qs.mod_epic(m1,m2,d,a) #precession
+        wdot *=(1+1.5*ei**2) #precession scaling with ecc
         n2 = (n1+(n-1)*wdot)/(n)
     
         if ap > mod_a_from_n(m1,m2,d,n1/(-width+n1/n2),f1,f2,f3,f4):
@@ -179,10 +180,7 @@ def check_p_fast(row):
 #popsynth = pd.read_csv("../../Projects/tidal/popsynth/e_crit/popsynthresults.txt",names = ["Name","m1","m2","Pbin","ebin","cmax","cmin"])
 #popsynth = popsynth[popsynth.m2=]
 
-emin, emax = 0.01,.7
-
-P_b = 7.0
-P_b = 30
+emin, emax = 0.01,.7 #starting min and max ecc
 
 pbs = 3*10**np.arange(0,1.1,.05)
 #pbs = pbs[-1:]
@@ -212,6 +210,7 @@ for q0 in q:
             print x
             e_b = np.linspace(emin,emax,numcpu) # the resulution is based on your number of threads
             
+            #writes a file that includes all the systems
             f0 = open("../../Projects/tidal/popsynth/e_crit/systems.txt","w+")
             
             for e in e_b:
@@ -239,7 +238,7 @@ for q0 in q:
             pool = mp.Pool(processes=numcpu)
             pool.map(check_p_fast, rows)
             
-            # writes results to a file
+            # writes results for those runs to a file
             f0 = open("../../Projects/tidal/popsynth/e_crit/results.txt","a+")
             
             for name in systems.Name:

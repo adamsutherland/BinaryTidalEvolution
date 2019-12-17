@@ -10,7 +10,6 @@ import multiprocessing as mp
 import pandas as pd
 import numpy as np
 
-
 # Eccentricity functions
 
 def f1(e2):
@@ -33,6 +32,7 @@ def f5(e2):
 #    ar*tau + br*tau**10 + gamma*tau**40 + 
 
 def rtms(m):
+    """Not used. Finds radius on main sequence."""
     a17, a18, a19, a20 = 1.4, 2.187715, 1.466440, 2.652091
     a22, a23, a24, a25 = 3.071048, 2.617890, 1.075567, 1.476246
     a21, a26, c1 = 1.47, 5.502535, -8.672073*10**-2
@@ -49,19 +49,23 @@ def rtms(m):
     #return 0.338
         
 def rt(m,t):
+    """Not used."""
     tms = 5*10**11
     tau = t/tms
     alpha_r = 8.4300*10**-2
     logs = alpha_r * tau
 
 def L_Tout(m):
+    """Finds luminosity on the MS according to Tout 1996"""
     return (0.39704170*m**5.5+8.52762600*m**11)/(0.00025546+m**3+5.43288900*m**5+5.56357900*m**7+0.78866060*m**8+0.00586685*m**9.5)
 
 def R_Tout(m):
+    """Finds radius on the MS according to Tout 1996"""
     r1 = (1.71535900*m**2.5+ 6.59778800*m**6.5+ 10.08855000*m**11+ 1.01249500*m**19+ 0.07490166*m**19.5)
     r2 = (0.01077422 + 3.08223400*m**2+ 17.84778000*m**8.5+ m**18.5+ 0.00022582*m**19.5)
     return r1/r2
 
+# Reads table of Kepler binaries and planets
 csv = pd.read_csv("kepler_data.csv",delim_whitespace=True)
 csv = csv[(csv.Name != "47d")&(csv.Name != "47c")] # removes redundant planets
 ##csv = csv[(csv.Name != "64b")]
@@ -117,6 +121,7 @@ def dedt2(a,e,w,k,Tau,m1,m2,R):
         return fob*-ftide*27*k/Tau*q*(1 + q)*(R/a)**8*e/(1 - (e)**2)**(13./2) * (f3(e) - 11./18*(1 - (e)**2)**(3./2)*f4(e)* ps(e))
 
 def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h):
+    """See rungeKuttaPSdual instead. This tracks spin as well"""
     # Count number of iterations using step size or 
     # step height h 
     n = (int)((t - t0)/h)  
@@ -149,7 +154,8 @@ def rungeKutta(t0, a0, e0, w0, m1, m2, R, Menv, Tau, t, h):
         t0 = t0 + h 
     return t0, a0, e0, w0
 
-def rungeKuttaPS(t0, a0, e0, w0, m1, m2, R, MenvM, Tau, t, h): 
+def rungeKuttaPS(t0, a0, e0, w0, m1, m2, R, MenvM, Tau, t, h):
+    """See rungeKuttaPSdual instead. PS case, single star."""
     # Count number of iterations using step size or 
     # step height h 
     n = (int)((t - t0)/h)  
@@ -320,10 +326,11 @@ def run_dual(row):
         t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/f"+str(ftide)+"/"+row['Name']+".p")
+    df.to_pickle("../../Projects/tidal/"+str(ftide)+"/"+row['Name']+".p")
 
 
 def R_M_env(m,R):
+    """Mass and radius of convective envelope"""
     if m <= 0.35:
         Renv = R
         Menv = m
@@ -337,7 +344,7 @@ def R_M_env(m,R):
 
 def run_dual_R_evo(row):
     """Accounts for radius evolution. Reads in stellar evolution track."""
-    track = pd.read_csv("/home/adam/Projects/tidal/tracks/"+row['Name']+".DAT",delim_whitespace=True)
+    track = pd.read_csv("./tracks/"+row['Name']+".DAT",delim_whitespace=True)
     track["R"] = 10**track.LOG_R/6.9598e10
     track["L"] = 10**track.LOG_L
     trmin = track.AGE[track.R==track.R.min()].values[0] # time at minimum radius
@@ -392,7 +399,7 @@ def run_dual_R_evo(row):
         t0, a0, e0, w0, f1, f2 = rungeKuttaPSdual(t0, a0, e0, m1, m2, R1, R2, MenvM1, MenvM2, Tau1, Tau2, t0+ tout, dt)
         tt[x], aa[x], ee[x], ww[x], ff1[x], ff2[x] = t0, a0, e0, w0, f1, f2
     df = pd.DataFrame(data={'t': tt, 'a': aa, 'e': ee, 'w': ww, 'f1': ff1, 'f2': ff2})
-    df.to_pickle("../../Projects/tidal/f"+str(ftide)+"/"+row['Name']+"_evo.p")
+    df.to_pickle("../../Projects/tidal/"+str(ftide)+"/"+row['Name']+"_evo.p")
 
 import multiprocessing
 
@@ -400,25 +407,28 @@ import multiprocessing
 numcpu = multiprocessing.cpu_count()
 rows = [row for index, row in csv.iterrows()]
 
-# uncomment to run 
 
-
-# efficiently splits processes between cores
+# uncomment to run all Kepler with constant radius
+#
+# #efficiently splits processes between cores
 #if len(rows) % numcpu != 0:
 #    batches = len(rows)/numcpu+1
 #    numcpu = len(rows)/batches+1
-
-# multiprocessing for all 
+#
+# #multiprocessing for all 
 #pool = mp.Pool(processes=numcpu)
 #pool.map(run_dual, rows)
 
-#limit csv to just values with radius evolution:
+
+# #limit csv to just values with radius evolution:
 #csv = csv[(csv.Name == "34b") |  (csv.Name == "38b") | (csv.Name == "47b") | (csv.Name == "KIC")]
 #rows = [row for index, row in csv.iterrows()]
-
+#
 #pool = mp.Pool(processes=numcpu)
 #pool.map(run_dual_R_evo, rows)
 
+
+# Extra:
 # to run just one at a time:
 #run_dual(rows[3])
 #run_dual_R_evo(rows[3])
